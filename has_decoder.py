@@ -158,6 +158,9 @@ def interpret_mt1_mask(body, byte_offset = 0, bit_offset = 0) :
          
         masks.append(mask)
         
+    # Skip 6 bits - reserved field
+    _, byte_offset, bit_offset = hc.get_bits( body, byte_offset, bit_offset, 6 )
+        
     return masks, byte_offset, bit_offset
 
 # validity intervals as specified by Table 13 of the ICD
