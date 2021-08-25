@@ -14,6 +14,7 @@ from tqdm import trange
 
 # load the CNAV data extracted from the Septentrio Rx
 filename = "SEPT147.21__SBF_GALRawCNAV.zip"
+# filename = "SEPT143.21__SBF_GALRawCNAV.zip"
 
 # header_list = ["TOW", "WNc [w]", "SVID", "CRCPassed", "ViterbiCnt", "signalType", "NAVBits"]
 header_list = ["TOW", "WNc [w]", "SVID", "CRCPassed", "ViterbiCnt", "signalType", "word 1", \
@@ -156,7 +157,7 @@ for hh in trange(len(valid_tows)) :
                                             byte_offset, bit_offset, masks, info)
             # print the corrections to file
             if not cbias_header :
-                cbias_file.write(cor.get_header() + '\n')
+                cbias_file.write(cors[0].get_header() + '\n')
                 cbias_header = True
                 
             for cor in cors :
