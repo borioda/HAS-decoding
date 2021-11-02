@@ -90,11 +90,7 @@ class has_decoder :
             elif message.complete() :
                 decoded_msg = message.decode()
                 self.message_list.remove(message)
-            
-        # The actual decoding should be performed here
-        if decoded_msg is not None :
-            pass
-        
+                    
         return decoded_msg
     
 def interpret_mt1_header( header ) :
@@ -385,7 +381,7 @@ def interpret_mt1_code_biases(body, byte_offset, bit_offset, masks, info = None 
                 signals = mask.signals
             else :
                 signals = []
-                signal_mask = bin(self.cell_mask[ii])[2:]
+                signal_mask = bin(mask.cell_mask[ii])[2:]
                 
                 for kk in range(len(mask.signals)) :
                     if signal_mask[-kk-1] == '1' :
@@ -436,7 +432,7 @@ def interpret_mt1_phase_biases(body, byte_offset, bit_offset, masks, info = None
                 signals = mask.signals
             else :
                 signals = []
-                signal_mask = bin(self.cell_mask[ii])[2:]
+                signal_mask = bin(mask.cell_mask[ii])[2:]
                 
                 for kk in range(len(mask.signals)) :
                     if signal_mask[-kk-1] == '1' :

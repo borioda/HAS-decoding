@@ -244,7 +244,11 @@ class has_message :
         # If here, perform decoding
         # Get the reduced encoding matrix
         HR = self.GF256(self.H[self.page_ids, 0:self.size])
-        HRinv = np.linalg.inv(HR)
+        
+        try :
+            HRinv = np.linalg.inv(HR)
+        except :
+            return None
         
         msg = HRinv @ self.GF256(self.pages)
         

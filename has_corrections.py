@@ -160,7 +160,7 @@ class has_mask :
         
         # Extract the cell mask if available
         if self.cell_mask_flag == 1 :
-            num_bits = len(mask.prns)
+            num_bits = len(self.prns)
 
             for ii in range(len(self.signals)) :
                 cell_mask, byte_offset, bit_offset = get_bits( body, byte_offset, bit_offset, num_bits )

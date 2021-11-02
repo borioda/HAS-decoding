@@ -13,25 +13,55 @@ import has_decoder as hd
 from tqdm import trange 
 
 # load the CNAV data extracted from the Septentrio Rx
-filename = "SEPT147.21__SBF_GALRawCNAV.zip"
-# filename = "SEPT143.21__SBF_GALRawCNAV.zip"
+filename = '/home/daniele/Documents/Projects/2021/HAS Decoding/input/NORD1660.21/NORD1660.21__SBF_GALRawCNAV.zip'
+_type = "txt"
 
-# header_list = ["TOW", "WNc [w]", "SVID", "CRCPassed", "ViterbiCnt", "signalType", "NAVBits"]
-header_list = ["TOW", "WNc [w]", "SVID", "CRCPassed", "ViterbiCnt", "signalType", "word 1", \
-               "word 2", "word 3", "word 4", "word 5", "word 6", "word 7", "word 8",\
-               "word 9", "word 10", "word 11", "word 12", "word 13", "word 14",\
-               "word 15", "word 16"]
-
-# Specify the data type
-data_types = {"word 1" : np.uint32, "word 2" : np.uint32, "word 3" : np.uint32,
-              "word 4" : np.uint32, "word 5" : np.uint32, "word 6" : np.uint32,
-              "word 7" : np.uint32, "word 8" : np.uint32, "word 9" : np.uint32,
-              "word 10" : np.uint32, "word 11" : np.uint32, "word 12" : np.uint32,
-              "word 13" : np.uint32, "word 14" : np.uint32, "word 15" : np.uint32,
-              "word 16" : np.uint32}
-               
-df = pd.read_csv(filename, compression='zip', sep=',| ', names=header_list, \
-                 engine='python', dtype = data_types)
+if _type == "txt" :
+    # header_list = ["TOW", "WNc [w]", "SVID", "CRCPassed", "ViterbiCnt", "signalType", "NAVBits"]
+    header_list = ["TOW", "WNc [w]", "SVID", "CRCPassed", "ViterbiCnt", "signalType", "word 1", \
+                   "word 2", "word 3", "word 4", "word 5", "word 6", "word 7", "word 8",\
+                   "word 9", "word 10", "word 11", "word 12", "word 13", "word 14",\
+                   "word 15", "word 16"]
+    
+    # Specify the data type
+    data_types = {"word 1" : np.uint32, "word 2" : np.uint32, "word 3" : np.uint32,
+                  "word 4" : np.uint32, "word 5" : np.uint32, "word 6" : np.uint32,
+                  "word 7" : np.uint32, "word 8" : np.uint32, "word 9" : np.uint32,
+                  "word 10" : np.uint32, "word 11" : np.uint32, "word 12" : np.uint32,
+                  "word 13" : np.uint32, "word 14" : np.uint32, "word 15" : np.uint32,
+                  "word 16" : np.uint32}
+                   
+    df = pd.read_csv(filename, compression='zip', sep=',| ', names=header_list, \
+                     engine='python', dtype = data_types)
+    
+elif _type == "hexa" :
+    header_list = ["TOW", "WNc [w]", "SVID", "CRCPassed", "ViterbiCnt", "signalType",\
+                   "VITERBI_TYPE","RxChannel","word 1", \
+                   "word 2", "word 3", "word 4", "word 5", "word 6", "word 7", "word 8",\
+                   "word 9", "word 10", "word 11", "word 12", "word 13", "word 14",\
+                   "word 15", "word 16"]
+        
+    converters = {
+        "word 1" : lambda x: int(x, 16),\
+        "word 2" : lambda x: int(x, 16),\
+        "word 3" : lambda x: int(x, 16),\
+        "word 4" : lambda x: int(x, 16),\
+        "word 5" : lambda x: int(x, 16),\
+        "word 6" : lambda x: int(x, 16),\
+        "word 7" : lambda x: int(x, 16),\
+        "word 8" : lambda x: int(x, 16),\
+        "word 9" : lambda x: int(x, 16),\
+        "word 10" : lambda x: int(x, 16),\
+        "word 11" : lambda x: int(x, 16),\
+        "word 12" : lambda x: int(x, 16),\
+        "word 13" : lambda x: int(x, 16),\
+        "word 14" : lambda x: int(x, 16),\
+        "word 15" : lambda x: int(x, 16),\
+        "word 16" : lambda x: int(x, 16)
+        }
+        
+    df = pd.read_csv(filename, compression='zip', sep=',| ', names=header_list, \
+                     engine='python', converters = converters)
 
 print("Data loaded ...\n")
     
@@ -95,7 +125,8 @@ for hh in trange(len(valid_tows)) :
     msg_size = df_valid['Message_Size'].iloc[tow_ind[0]]
     
     msg = decoder.update(tow, page_block, msg_type, msg_id, msg_size)
-
+    masks = None
+    
     if msg is not None :
         header = hd.interpret_mt1_header(msg.flatten()[0:4])
         # print(int(tow / 1000) % 3600)
@@ -105,17 +136,34 @@ for hh in trange(len(valid_tows)) :
                 'ToH' : header['TOH'],
                 'IOD' : header['IOD Set ID'] }
         
+        # Check on timing information
+        # if (info['ToW'] % 3600) < info['ToH'] :
+        #     print('Invalid ToH')
+        #     continue
         
         body = msg.flatten()[4:]
         byte_offset = 0 
         bit_offset = 0
         
         if header["Mask"] == 1 :
-            masks, byte_offset, bit_offset = hd.interpret_mt1_mask(body)
+            try :
+                masks, byte_offset, bit_offset = hd.interpret_mt1_mask(body)
+            except :
+                continue
+            
+        if masks is None :
+            continue
         
         if header['Orbit Corr'] == 1 :
-            cors, byte_offset, bit_offset = hd.interpret_mt1_orbit_corrections(body,\
-                                            byte_offset, bit_offset, masks, info)
+            try :
+                cors, byte_offset, bit_offset = hd.interpret_mt1_orbit_corrections(body,\
+                                                byte_offset, bit_offset, masks, info)
+            except :
+                continue
+            
+            if len(cors) == 0 :
+                continue
+            
             # print the corrections to file
             if not orbit_header :
                 orbit_file.write(cors[0].get_header() + '\n')
@@ -126,8 +174,15 @@ for hh in trange(len(valid_tows)) :
                 orbit_file.write(cor_str)
             
         if header['Clock Full-set'] == 1 :
-            cors, byte_offset, bit_offset = hd.interpret_mt1_full_clock_corrections(body,\
-                                            byte_offset, bit_offset, masks, info)
+            try :
+                cors, byte_offset, bit_offset = hd.interpret_mt1_full_clock_corrections(body,\
+                                                byte_offset, bit_offset, masks, info)
+            except :
+                continue
+            
+            if len(cors) == 0 :
+                continue
+            
             # print the corrections to file
             if not clock_header :
                 clock_file.write(cors[0].get_header() + '\n')
@@ -140,8 +195,14 @@ for hh in trange(len(valid_tows)) :
         if header['Clock Subset'] == 1 :
             # This block needs an "external" mask 
             if masks is not None :
-                cors, byte_offset, bit_offset = hd.interpret_mt1_subset_clock_corrections(body,\
+                try :
+                    cors, byte_offset, bit_offset = hd.interpret_mt1_subset_clock_corrections(body,\
                                                 byte_offset, bit_offset, masks, info)
+                except :
+                    continue
+                
+                if len(cors) == 0 :
+                    continue
                 
                 # print the corrections to file
                 if not clock_header :
@@ -153,8 +214,15 @@ for hh in trange(len(valid_tows)) :
                     clock_file.write(cor_str) 
 
         if header['Code Bias'] == 1 :
-            cors, byte_offset, bit_offset = hd.interpret_mt1_code_biases(body,\
+            try :
+                cors, byte_offset, bit_offset = hd.interpret_mt1_code_biases(body,\
                                             byte_offset, bit_offset, masks, info)
+            except :
+                continue
+            
+            if len(cors) == 0 :
+                continue
+            
             # print the corrections to file
             if not cbias_header :
                 cbias_file.write(cors[0].get_header() + '\n')
@@ -165,8 +233,15 @@ for hh in trange(len(valid_tows)) :
                 cbias_file.write(cor_str)
             
         if header['Phase Bias'] == 1 :
-            cors, byte_offset, bit_offset = hd.interpret_mt1_phase_biases(body,\
+            try:
+                cors, byte_offset, bit_offset = hd.interpret_mt1_phase_biases(body,\
                                             byte_offset, bit_offset, masks, info)
+            except:
+                continue
+            
+            if len(cors) == 0 :
+                continue
+            
             # print the corrections to file
             if not pbias_header :
                 pbias_file.write(cors[0].get_header() + '\n')
