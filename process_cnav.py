@@ -13,7 +13,7 @@ import has_decoder as hd
 from tqdm import trange 
 
 # load the CNAV data extracted from the Septentrio Rx
-filename = '/home/daniele/Documents/Projects/2021/HAS Decoding/input/NORD1660.21/NORD1660.21__SBF_GALRawCNAV.zip'
+filename = '/home/daniele/Documents/Projects/2021/HAS Decoding/input/NORD1670.21/NORD1670.21__SBF_GALRawCNAV.zip'
 _type = "txt"
 
 if _type == "txt" :
@@ -109,6 +109,9 @@ clock_header = False
 cbias_header = False
 pbias_header = False
 
+# Masks have to be propagated between different loops
+masks = None
+
 for hh in trange(len(valid_tows)) :
     
     tow = valid_tows[hh]
@@ -125,7 +128,7 @@ for hh in trange(len(valid_tows)) :
     msg_size = df_valid['Message_Size'].iloc[tow_ind[0]]
     
     msg = decoder.update(tow, page_block, msg_type, msg_id, msg_size)
-    masks = None
+    
     
     if msg is not None :
         header = hd.interpret_mt1_header(msg.flatten()[0:4])
@@ -229,6 +232,9 @@ for hh in trange(len(valid_tows)) :
                 cbias_header = True
                 
             for cor in cors :
+                if cor.is_empty() :
+                    continue
+                
                 cor_str = cor.__str__() + '\n'
                 cbias_file.write(cor_str)
             
@@ -248,6 +254,9 @@ for hh in trange(len(valid_tows)) :
                 pbias_header = True
                 
             for cor in cors :
+                if cor.is_empty() :
+                    continue
+                
                 cor_str = cor.__str__() + '\n'
                 pbias_file.write(cor_str)
                 

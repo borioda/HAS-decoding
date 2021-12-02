@@ -141,7 +141,7 @@ class has_mask :
         satmask, byte_offset, bit_offset = get_bits( body, byte_offset, bit_offset, 40 )
 
         # Convert it into a list of PRNs
-        satmask = bin(satmask)[2:]
+        satmask = format(satmask, '040b')
         for jj in range(len(satmask)) :
             if satmask[jj] == '1' :
                 self.prns.append(jj + 1)
@@ -150,7 +150,7 @@ class has_mask :
         sigmask, byte_offset, bit_offset = get_bits( body, byte_offset, bit_offset, 16 )
         
         # Convert it into a list of signals
-        sigmask = bin(sigmask)[2:]
+        sigmask = format(sigmask, '016b')
         for jj in range(len(sigmask)) :
             if sigmask[jj] == '1' :
                 self.signals.append(jj + 1)
@@ -160,10 +160,12 @@ class has_mask :
         
         # Extract the cell mask if available
         if self.cell_mask_flag == 1 :
-            num_bits = len(self.prns)
+            Nsat = len(self.prns) # Number of satellites
+            Nsig = len(self.signals) # Number of signals per satellite
 
-            for ii in range(len(self.signals)) :
-                cell_mask, byte_offset, bit_offset = get_bits( body, byte_offset, bit_offset, num_bits )
+            # For each satellite record the signal mask
+            for ii in range(Nsat) :
+                cell_mask, byte_offset, bit_offset = get_bits( body, byte_offset, bit_offset, Nsig )
                 self.cell_mask.append(cell_mask.copy())
             
         # get the nav message corrected in the orbits
@@ -549,7 +551,26 @@ class has_code_bias(has_correction) :
                 self.biases[ii] = two_complement(bias, 11) * 0.02
                 
         return byte_offset, bit_offset
+    
+    def is_empty(self) :
+        """
+        Summary:
+            Check if the correction contains actual data or if it is empty.
+            
+        Arguments:
+            None.
+            
+        Returns:
+            True if there are no corrections available.
+        """
+        if len(self.signals) == 0 :
+            return True
         
+        if len(self.biases) == 0 :
+            return True
+        
+        return False
+    
     def __str__(self) :
         """
         Summary :
@@ -562,6 +583,9 @@ class has_code_bias(has_correction) :
             String representing the content of the object
         """
         out_str = ""
+        
+        if self.is_empty() :
+            return out_str
         
         for ii in range(len(self.signals) - 1) :
             
@@ -659,6 +683,25 @@ class has_phase_bias(has_correction) :
                 
         return byte_offset, bit_offset
     
+    def is_empty(self) :
+        """
+        Summary:
+            Check if the correction contains actual data or if it is empty.
+            
+        Arguments:
+            None.
+            
+        Returns:
+            True if there are no corrections available.
+        """
+        if len(self.signals) == 0 :
+            return True
+        
+        if len(self.biases) == 0 :
+            return True
+        
+        return False
+    
     def __str__(self) :
         """
         Summary :
@@ -671,6 +714,9 @@ class has_phase_bias(has_correction) :
             String representing the content of the object
         """
         out_str = ""
+        
+        if self.is_empty() :
+            return ""
         
         for ii in range(len(self.signals) - 1) :
             

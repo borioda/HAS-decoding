@@ -372,19 +372,17 @@ def interpret_mt1_code_biases(body, byte_offset, bit_offset, masks, info = None 
         gnss_id = mask.gnss_ID
                 
         # loop over the differnt PRNs
-        for ii in range(len(mask.prns)) :
-            
-            prn = mask.prns[ii]
+        for ii, prn in enumerate(mask.prns) :
             
             # determine the number of biases/signals
             if mask.cell_mask_flag == 0 :
                 signals = mask.signals
             else :
                 signals = []
-                signal_mask = bin(mask.cell_mask[ii])[2:]
+                signal_mask = format(mask.cell_mask[ii], f"0{len(mask.signals)}b")
                 
                 for kk in range(len(mask.signals)) :
-                    if signal_mask[-kk-1] == '1' :
+                    if signal_mask[kk] == '1' :
                         signals.append(mask.signals[kk])
             
             # Now create the new bias
@@ -423,19 +421,17 @@ def interpret_mt1_phase_biases(body, byte_offset, bit_offset, masks, info = None
         gnss_id = mask.gnss_ID
                 
         # loop over the differnt PRNs
-        for ii in range(len(mask.prns)) :
-            
-            prn = mask.prns[ii]
+        for ii, prn in enumerate(mask.prns) :
             
             # determine the number of biases/signals
             if mask.cell_mask_flag == 0 :
                 signals = mask.signals
             else :
                 signals = []
-                signal_mask = bin(mask.cell_mask[ii])[2:]
+                signal_mask = format(mask.cell_mask[ii], f"0{len(mask.signals)}b")
                 
                 for kk in range(len(mask.signals)) :
-                    if signal_mask[-kk-1] == '1' :
+                    if signal_mask[kk] == '1' :
                         signals.append(mask.signals[kk])
             
             # Now create the new bias
