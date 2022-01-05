@@ -153,7 +153,7 @@ class has_mask :
         sigmask = format(sigmask, '016b')
         for jj in range(len(sigmask)) :
             if sigmask[jj] == '1' :
-                self.signals.append(jj + 1)
+                self.signals.append(jj)
                 
         # Cell mask flag
         self.cell_mask_flag, byte_offset, bit_offset = get_bits( body, byte_offset, bit_offset, 1 )
