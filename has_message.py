@@ -29,7 +29,7 @@ class has_message :
     # Reed-Solomon encoding matrix
     H = np.genfromtxt('has_encoding_matrix.csv', delimiter=',', dtype=np.uint8)
 
-    def __init__(self, mtype, mid, size) :
+    def __init__(self, mtype, mid, size, ind_offset = 1) :
         """        
         Summary :
             Object constructor.
@@ -38,7 +38,9 @@ class has_message :
             mtype - type of the message (only MT1 is currently supported) 
             mid - ID of the message
             msize - size of the message expressed in number of pages
-        
+            ind_offset - during the first testing phase page indexes started as zero,
+                         it was then updated to 1. This offset takes into account
+                         this effect.
         Returns:
             Nothing.
         """
@@ -65,6 +67,7 @@ class has_message :
         # updated. To be used by the decoder to remove messages
         self.age = 0
         
+        self.ind_offset = ind_offset
         
     def add_page( self, page_id, page ) :
         """
@@ -243,7 +246,7 @@ class has_message :
         
         # If here, perform decoding
         # Get the reduced encoding matrix
-        HR = self.GF256(self.H[self.page_ids - 1, 0:self.size])
+        HR = self.GF256(self.H[self.page_ids - self.ind_offset, 0:self.size])
         
         try :
             HRinv = np.linalg.inv(HR)

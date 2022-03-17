@@ -153,7 +153,7 @@ class has_mask :
         sigmask = format(sigmask, '016b')
         for jj in range(len(sigmask)) :
             if sigmask[jj] == '1' :
-                self.signals.append(jj)
+                self.signals.append(jj + 1)
                 
         # Cell mask flag
         self.cell_mask_flag, byte_offset, bit_offset = get_bits( body, byte_offset, bit_offset, 1 )
@@ -180,7 +180,7 @@ class has_correction(metaclass = abc.ABCMeta) :
         Parent class defining the basic properties of a HAS correction.
         This is an abstract class, which defines basic interfaces
     """
-    def __init__(self, gnss_ID, prn, validity, tow = -1, toh = -1, IOD = -1) :
+    def __init__(self, gnss_ID, prn, validity, info : dict = None) :
         """
         Summary :
             Object constructor.
@@ -189,9 +189,12 @@ class has_correction(metaclass = abc.ABCMeta) :
             gnss_ID - identifier defining the GNSS of the correction
             prn - satellite identifier
             validity - validity of the correction in seconds
-            tow - time of week (extracted from the navigation message) in seconds
-            toh - time of hour extracted from the HAS header in seconds
-            IOD - Issue of Data extracted from the HAS header
+            info - dictionary with the following information
+            
+                ToW - time of week (extracted from the navigation message) in seconds
+                ToH - time of hour extracted from the HAS header in seconds
+                IOD - Issue of Data extracted from the HAS header
+                WN - the week number
             
         Returns:
             The correction object.
@@ -205,14 +208,27 @@ class has_correction(metaclass = abc.ABCMeta) :
         # Validity interval
         self.validity = validity
 
+        if info is None :
+            info = {'ToW': -1,
+                    'WN' : -1,
+                    'ToH' : -1,
+                    'IOD' : -1}
+
         # time of week
-        self.tow = tow
+        self.tow = info['ToW']
 
         # time of hour
-        self.toh = toh
+        self.toh = info['ToH']
         
         # issue of data
-        self.IOD = IOD
+        self.IOD = info['IOD']
+    
+        # week number
+        self.wn = info['WN']
+        
+        # GNSS IOD - This is a system related parameter and should not be confused
+        # with the correction IOD
+        self.gnss_IOD = -1
     
     @abc.abstractmethod
     def interpret(self, body, byte_offset, bit_offset) :
@@ -243,8 +259,10 @@ class has_correction(metaclass = abc.ABCMeta) :
         Returns:
             String representing the content of the object
         """
-        out_str = str(self.tow) + ',' +  str(self.toh) + ',' + str(self.IOD) + \
-                 ',' + str(self.validity) + ',' + str(self.gnss_ID) + ',' + str(self.prn)
+        out_str = str(self.tow) + ',' + str(self.wn) + ',' + str(self.toh)\
+                  + ',' + str(self.IOD) + ',' + str(self.gnss_IOD) + ','\
+                  + str(self.validity) + ','\
+                  + str(self.gnss_ID) + ',' + str(self.prn)
         
         return out_str
     
@@ -260,14 +278,14 @@ class has_correction(metaclass = abc.ABCMeta) :
         Returns:
             String representing the attributes of __str__()
         """
-        return "ToW,ToH,IOD,validity,gnssID,PRN"
+        return "ToW,WN,ToH,IOD,gnssIOD,validity,gnssID,PRN"
 
 class has_orbit_correction(has_correction) :
     """
         HAS orbit corrections        
     """
     
-    def __init__(self, gnss_ID, prn, validity, tow = -1, toh = -1, IOD = -1) :
+    def __init__(self, gnss_ID, prn, validity, info : dict) :
         """
         Summary :
             Object constructor for the orbit correction
@@ -276,21 +294,15 @@ class has_orbit_correction(has_correction) :
             gnss_ID - identifier defining the GNSS of the correction
             prn - satellite identifier
             validity - validity of the correction in seconds
-            tow - time of week (extracted from the navigation message) in seconds
-            toh - time of hour extracted from the HAS header in seconds
-            IOD - Issue of Data extracted from the HAS header
+            info - dictionary with time information
             
         Returns:
             The correction object. 
         """
         
         # Initialize the parent class
-        super().__init__(gnss_ID, prn, validity, tow, toh, IOD)
+        super().__init__(gnss_ID, prn, validity, info)
         
-        # GNSS IOD - This is a system related parameter and should not be confused
-        # with the correction IOD
-        self.gnss_IOD = 0
-
         # Radial correction
         self.delta_radial = 0
         
@@ -371,7 +383,7 @@ class has_orbit_correction(has_correction) :
         Returns:
             String representing the content of the object
         """
-        out_str = super().__str__() + ',' + str(self.gnss_IOD) + ',' + \
+        out_str = super().__str__() + ',' + \
                   str(self.delta_radial) + ',' + str(self.delta_in_track) + \
                   ',' + str(self.delta_cross_track)
                   
@@ -398,7 +410,7 @@ class has_clock_corr(has_correction) :
     """
         Clock orbit corrections        
     """
-    def __init__(self, gnss_ID, prn, validity, sys_mul, tow = -1, toh = -1, IOD = -1) :
+    def __init__(self, gnss_ID, prn, validity, sys_mul, info : dict) :
         """
         Summary :
             Object constructor for the clock correction
@@ -407,16 +419,14 @@ class has_clock_corr(has_correction) :
             gnss_ID - identifier defining the GNSS of the correction
             prn - satellite identifier
             validity - validity of the correction in seconds
-            tow - time of week (extracted from the navigation message) in seconds
-            toh - time of hour extracted from the HAS header in seconds
-            IOD - Issue of Data extracted from the HAS header
             sys_mul - multiplier at the GNSS level for the clock C0 correction
+            info - dictionary with time information
 
         Returns:
             The correction object. 
         """
         # Initialize the parent class
-        super().__init__(gnss_ID, prn, validity, tow, toh, IOD)
+        super().__init__(gnss_ID, prn, validity, info)
                 
         # Multiplier for all Delta Clock C0 corrections
         self.multiplier = sys_mul
@@ -494,7 +504,7 @@ class has_code_bias(has_correction) :
     """
         HAS code bias corrections.
     """
-    def __init__(self, gnss_ID, prn, validity, signals, tow = -1, toh = -1, IOD = -1) :
+    def __init__(self, gnss_ID, prn, validity, signals, info : dict) :
         """
         Summary :
             Object constructor for the clock correction
@@ -503,17 +513,15 @@ class has_code_bias(has_correction) :
             gnss_ID - identifier defining the GNSS of the correction
             prn - satellite identifier
             validity - validity of the correction in seconds
-            tow - time of week (extracted from the navigation message) in seconds
-            toh - time of hour extracted from the HAS header in seconds
-            IOD - Issue of Data extracted from the HAS header
             signals - list of signals for which code biases are available
-
+            info - dictionary with time information
+            
         Returns:
             The correction object. 
         """
         
         # Initialize the parent class
-        super().__init__(gnss_ID, prn, validity, tow, toh, IOD)
+        super().__init__(gnss_ID, prn, validity, info)
         
         # List of supported signals
         self.signals = signals
@@ -623,7 +631,7 @@ class has_phase_bias(has_correction) :
     """
         HAS carrier phase corrections.
     """
-    def __init__(self, gnss_ID, prn, validity, signals, tow = -1, toh = -1, IOD = -1) :
+    def __init__(self, gnss_ID, prn, validity, signals, info : dict) :
         """
         Summary :
             Object constructor for the clock correction
@@ -632,16 +640,14 @@ class has_phase_bias(has_correction) :
             gnss_ID - identifier defining the GNSS of the correction
             prn - satellite identifier
             validity - validity of the correction in seconds
-            tow - time of week (extracted from the navigation message) in seconds
-            toh - time of hour extracted from the HAS header in seconds
-            IOD - Issue of Data extracted from the HAS header
             signals - list of signals for which carrier phase biases are available
+            info - dictionary with time information
 
         Returns:
             The correction object. 
         """
         # Initialize the parent class
-        super().__init__(gnss_ID, prn, validity, tow, toh, IOD)
+        super().__init__(gnss_ID, prn, validity, info)
         
         # List of supported signals
         self.signals = signals

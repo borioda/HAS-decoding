@@ -13,8 +13,10 @@ import has_decoder as hd
 from tqdm import trange 
 
 # load the CNAV data extracted from the Septentrio Rx
-filename = '/home/daniele/Documents/Projects/2021/HAS Decoding/input/NORD1670.21/NORD1670.21__SBF_GALRawCNAV.zip'
+# filename = '../data/HFS20170.22__SBF_GALRawCNAV.zip'
+filename = '../data/SEPT143.21__SBF_GALRawCNAV.zip'
 _type = "txt"
+_page_offset = 0
 
 if _type == "txt" :
     # header_list = ["TOW", "WNc [w]", "SVID", "CRCPassed", "ViterbiCnt", "signalType", "NAVBits"]
@@ -30,10 +32,14 @@ if _type == "txt" :
                   "word 10" : np.uint32, "word 11" : np.uint32, "word 12" : np.uint32,
                   "word 13" : np.uint32, "word 14" : np.uint32, "word 15" : np.uint32,
                   "word 16" : np.uint32}
-                   
-    df = pd.read_csv(filename, compression='zip', sep=',| ', names=header_list, \
-                     engine='python', dtype = data_types)
     
+    if filename.endswith('.zip') :               
+        df = pd.read_csv(filename, compression='zip', sep=',| ', names=header_list, \
+                     engine='python', dtype = data_types)
+    else :
+        df = pd.read_csv(filename, sep=',| ', names=header_list, \
+                     engine='python', dtype = data_types)
+            
 elif _type == "hexa" :
     header_list = ["TOW", "WNc [w]", "SVID", "CRCPassed", "ViterbiCnt", "signalType",\
                    "VITERBI_TYPE","RxChannel","word 1", \
@@ -59,9 +65,20 @@ elif _type == "hexa" :
         "word 15" : lambda x: int(x, 16),\
         "word 16" : lambda x: int(x, 16)
         }
-        
-    df = pd.read_csv(filename, compression='zip', sep=',| ', names=header_list, \
+    
+    if filename.endswith('.zip') :
+        df = pd.read_csv(filename, compression='zip', sep=',| ', names=header_list, \
                      engine='python', converters = converters)
+    else :
+        df = pd.read_csv(filename, sep=',| ', names=header_list, \
+                     engine='python', converters = converters)
+            
+    # Apply specific processing depending if data have been interpreted or if left raw
+    if isinstance(df["CRCPassed"].values[0], str) :
+        df["CRCPassed"] = (df["CRCPassed"].values == "Passed")    
+    
+    if isinstance(df["SVID"].values[0], str) :
+        df["SVID"] = df["SVID"].apply(lambda x: int(x[1:]))
 
 print("Data loaded ...\n")
     
@@ -87,7 +104,7 @@ df_valid["Message_Size"] = (( HAS_Header >> 8 ) & 0x1F) + 1
 df_valid["Page_ID"] = (HAS_Header) & 0xFF
 
 # Allocate the decoder
-decoder = hd.has_decoder()
+decoder = hd.has_decoder(_page_offset)
 
 valid_tows = np.unique(df_valid['TOW'])
 
@@ -118,6 +135,7 @@ for hh in trange(len(valid_tows)) :
     
     tow_ind = np.argwhere(df_valid['TOW'].values == tow).flatten()
     
+    
     page_block = []
     for ii in tow_ind :
         page = np.array([df_valid["word %d" % kk].iloc[ii] for kk in range(1, 17)], dtype=np.uint32)
@@ -127,18 +145,21 @@ for hh in trange(len(valid_tows)) :
     msg_id = df_valid['Message_ID'].iloc[tow_ind[0]]
     msg_size = df_valid['Message_Size'].iloc[tow_ind[0]]
     
+    # also get the week number
+    week = df_valid['WNc [w]'].iloc[tow_ind[0]]
+    
     msg = decoder.update(tow, page_block, msg_type, msg_id, msg_size)
     
     
     if msg is not None :
-        header = hd.interpret_mt1_header(msg.flatten()[0:4])
+        header = decoder.interpret_mt1_header(msg.flatten()[0:4])
         # print(int(tow / 1000) % 3600)
         # print(header)
         
         info = {'ToW' : int(tow / 1000),
+                'WN' : week,
                 'ToH' : header['TOH'],
-                'IOD' : header['IOD Set ID'] }
-        
+                'IOD' : header['IOD Set ID']}
         # Check on timing information
         # if (info['ToW'] % 3600) < info['ToH'] :
         #     print('Invalid ToH')
@@ -150,7 +171,7 @@ for hh in trange(len(valid_tows)) :
         
         if header["Mask"] == 1 :
             try :
-                masks, byte_offset, bit_offset = hd.interpret_mt1_mask(body)
+                masks, byte_offset, bit_offset = decoder.interpret_mt1_mask(body)
             except :
                 continue
             
@@ -159,7 +180,7 @@ for hh in trange(len(valid_tows)) :
         
         if header['Orbit Corr'] == 1 :
             try :
-                cors, byte_offset, bit_offset = hd.interpret_mt1_orbit_corrections(body,\
+                cors, byte_offset, bit_offset = decoder.interpret_mt1_orbit_corrections(body,\
                                                 byte_offset, bit_offset, masks, info)
             except :
                 continue
@@ -178,7 +199,7 @@ for hh in trange(len(valid_tows)) :
             
         if header['Clock Full-set'] == 1 :
             try :
-                cors, byte_offset, bit_offset = hd.interpret_mt1_full_clock_corrections(body,\
+                cors, byte_offset, bit_offset = decoder.interpret_mt1_full_clock_corrections(body,\
                                                 byte_offset, bit_offset, masks, info)
             except :
                 continue
@@ -199,7 +220,7 @@ for hh in trange(len(valid_tows)) :
             # This block needs an "external" mask 
             if masks is not None :
                 try :
-                    cors, byte_offset, bit_offset = hd.interpret_mt1_subset_clock_corrections(body,\
+                    cors, byte_offset, bit_offset = decoder.interpret_mt1_subset_clock_corrections(body,\
                                                 byte_offset, bit_offset, masks, info)
                 except :
                     continue
@@ -218,7 +239,7 @@ for hh in trange(len(valid_tows)) :
 
         if header['Code Bias'] == 1 :
             try :
-                cors, byte_offset, bit_offset = hd.interpret_mt1_code_biases(body,\
+                cors, byte_offset, bit_offset = decoder.interpret_mt1_code_biases(body,\
                                             byte_offset, bit_offset, masks, info)
             except :
                 continue
@@ -240,7 +261,7 @@ for hh in trange(len(valid_tows)) :
             
         if header['Phase Bias'] == 1 :
             try:
-                cors, byte_offset, bit_offset = hd.interpret_mt1_phase_biases(body,\
+                cors, byte_offset, bit_offset = decoder.interpret_mt1_phase_biases(body,\
                                             byte_offset, bit_offset, masks, info)
             except:
                 continue
