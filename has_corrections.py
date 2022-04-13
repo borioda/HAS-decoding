@@ -153,7 +153,7 @@ class has_mask :
         sigmask = format(sigmask, '016b')
         for jj in range(len(sigmask)) :
             if sigmask[jj] == '1' :
-                self.signals.append(jj + 1)
+                self.signals.append(jj)
                 
         # Cell mask flag
         self.cell_mask_flag, byte_offset, bit_offset = get_bits( body, byte_offset, bit_offset, 1 )
@@ -401,7 +401,7 @@ class has_orbit_correction(has_correction) :
         Returns:
             String representing the attributes of __str__()
         """
-        out_str = super().get_header() + ',gnssIOD,delta_radial,' +\
+        out_str = super().get_header() + ',delta_radial,' +\
                   'delta_in_track,delta_cross_track'
                   
         return out_str

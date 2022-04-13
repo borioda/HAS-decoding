@@ -14,9 +14,12 @@ from tqdm import trange
 
 # load the CNAV data extracted from the Septentrio Rx
 # filename = '../data/HFS20170.22__SBF_GALRawCNAV.zip'
-filename = '../data/SEPT143.21__SBF_GALRawCNAV.zip'
-_type = "txt"
-_page_offset = 0
+filename = './SEPT271.sbf_SBF_GALRawCNAV.txt'
+_type = "hexa"
+_page_offset = 1
+
+# Depending on the parser, the ToW can be either expressed in ms or in seconds
+TowInMs = False
 
 if _type == "txt" :
     # header_list = ["TOW", "WNc [w]", "SVID", "CRCPassed", "ViterbiCnt", "signalType", "NAVBits"]
@@ -156,7 +159,10 @@ for hh in trange(len(valid_tows)) :
         # print(int(tow / 1000) % 3600)
         # print(header)
         
-        info = {'ToW' : int(tow / 1000),
+        if TowInMs :
+            tow /= 1000
+        
+        info = {'ToW' : tow,
                 'WN' : week,
                 'ToH' : header['TOH'],
                 'IOD' : header['IOD Set ID']}
