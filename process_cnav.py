@@ -10,8 +10,13 @@ Created on 31st May 2021
 import numpy as np
 import data_loading as dl
 import has_decoder as hd
-from tqdm.auto import tqdm
-    
+
+# Import the right library depending on the environment
+import sys
+if 'ipykernel_launcher.py' in sys.argv[0] :
+    from tqdm.notebook import tqdm
+else :
+    from tqdm import tqdm 
     
 def parse_data( filename, _rx, _type = None, _page_offset = 1) :
     
