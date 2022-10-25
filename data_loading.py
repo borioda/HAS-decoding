@@ -9,6 +9,8 @@ Created on Mon May  9 07:08:06 2022
 import pandas as pd
 import numpy as np
 import timefun as tf
+import struct
+
 """
 Summary :
     Set of functions implementing data loading from different file formats
@@ -106,6 +108,156 @@ def load_from_parsed_Septentrio(filename : str, _type : str = "hexa" ) :
 
     return df
 
+def load_from_binary_Septentrio(filename : str) :
+    """
+        Summary :
+            Load the data from a Septentrio (SBF) binary file.
+        
+        Arguments :
+            filename - pathname of the file to be loaded
+    """
+    
+    # Open the input file
+    fid = open(filename, "rb")
+    
+    # Dictionary with the parsed information
+    data = { "TOW" : [], 
+             "WNc [w]" : [], 
+             "SVID": [], 
+             "CRCPassed" : [], 
+             "ViterbiCnt" : [], 
+             "signalType" : [], 
+             "word 1": [],
+             "word 2": [], 
+             "word 3": [], 
+             "word 4": [], 
+             "word 5": [], 
+             "word 6": [], 
+             "word 7": [], 
+             "word 8": [],
+             "word 9": [], 
+             "word 10": [], 
+             "word 11": [], 
+             "word 12": [], 
+             "word 13": [], 
+             "word 14": [],
+             "word 15": [], 
+             "word 16": []
+            }
+    
+    # Local functions
+    def get_message( fid ) :
+        """
+            Summary :
+                Identify a message and return the message ID and payload
+            
+            Arguments :
+                fid - pointer to the binary file
+            
+            Returns :
+                messageID - the message ID
+                payload - the message payload
+        """        
+        
+        # First identify the start of the message
+        sync1 = fid.read(1)
+        
+        if sync1 == b"" :
+            return None
+        
+        sync2 = fid.read(1)
+        
+        if sync2 == b"" :
+            return None
+        
+        # Move into the file until the synch pattern is found
+        while( (int.from_bytes(sync1, 'little') != 36) | \
+               (int.from_bytes(sync2, 'little') != 64) ) :
+            sync1 = sync2
+            sync2 = fid.read(1)
+            
+            if sync2 == b"" :
+                return None
+
+        # If here, the synchronization pattern has been found
+        # So, read the message header
+        header = fid.read(6)
+        
+        messageID = int.from_bytes(header[2:4], 'little')
+        
+        length = int.from_bytes(header[4:6], 'little')
+        
+        # Now read the message
+        msg = fid.read(length - 8)
+
+        if len(msg) != length - 8 :
+            return None
+        # Check here the crc
+        # To be added
+        # crc = int.from_bytes(header[2:4], 'little')
+                
+        
+        return messageID, msg
+
+    def get_time_stamp( msg ) :
+        """
+            Summary :
+                Extract the time stamp (TOW and Week Number) from the message
+            
+            Arguments :
+                msg - byte sequence containtaing the message
+            
+            Returns :
+                ToW - Time of week (in seconds)
+                WN - week number
+        """
+        ToW = int.from_bytes(msg[:4], 'little') / 1000
+        WN = int.from_bytes(msg[4:6], 'little')
+
+        return ToW, WN
+
+    # Main processing loop
+    while True :
+        msg = get_message( fid )
+        
+        if msg is None :
+            break
+        
+        # Get the message ID
+        msgID = msg[0]
+        
+        # Consider only the GALRawCNAV message
+        if msgID != 4024 :
+            continue
+        
+        # get the time stamps
+        ToW, WN = get_time_stamp( msg[1] )
+        
+        data["TOW"].append(ToW)
+        data["WNc [w]"].append(WN)
+        
+        # get the other data
+        sig_info = struct.unpack('BBBBBB', msg[1][6:12])
+        
+        # Other data value set to default values
+        data["SVID"].append(sig_info[0] - 70)
+        data["CRCPassed"].append(sig_info[1]) 
+        data["ViterbiCnt"].append(sig_info[2]) 
+        data["signalType"].append(sig_info[3])
+        
+        # save the 16 words (16 x 32 bits = 512)
+        cnav_msg = struct.unpack('IIIIIIIIIIIIIIII', msg[1][12:])
+        for ii in range(16) :
+            data[f"word {ii + 1}"].append(cnav_msg[ii])
+            
+    # close the inpu file
+    fid.close()
+    
+    # create the output dataframe
+    df = pd.DataFrame(data=data)
+    
+    return df
+    
 def load_from_Javad(filename : str ) :
     """
         Summary :

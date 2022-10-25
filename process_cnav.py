@@ -18,6 +18,7 @@ if 'ipykernel_launcher.py' in sys.argv[0] :
 else :
     from tqdm import tqdm 
     
+    
 def parse_data( filename, _rx, _type = None, _page_offset = 1) :
     
     """
@@ -50,7 +51,11 @@ def parse_data( filename, _rx, _type = None, _page_offset = 1) :
     print("Process started")
     
     if _rx == "sep" :
-        df = dl.load_from_parsed_Septentrio(filename, _type)
+        
+        if _type == "bin" :
+            df = dl.load_from_binary_Septentrio(filename)
+        else :
+            df = dl.load_from_parsed_Septentrio(filename, _type)
     
     elif _rx == "nov" :
         df = dl.load_from_Novatel(filename)
@@ -269,19 +274,21 @@ def parse_data( filename, _rx, _type = None, _page_offset = 1) :
 if __name__ == "__main__":
     
     # Set the input file name
-    filename = "/media/daniele/Elements/Projects/2022/HAS/has/data 29Sep/220929_000030_javad_Delta3.jps"
+    filename = "../data/SEPT267.sbf"
 
     # Receiver options
     # _rx = "sep"
     # _rx = "jav"
-    _rx = "jav"
+    _rx = "sep"
 
     
     # If Septentrio is selected, different options are supported 
     # depending on the Septentrio parser
     
     # Not relevant for other receivers
-    _type = "hexa"
+    # _type = "txt"
+    # _type = "hexa"
+    _type = "bin"
     
     # Should always be set to 1
     _page_offset = 1

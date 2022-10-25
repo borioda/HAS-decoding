@@ -50,8 +50,8 @@ class process_button_widget(VBox) :
                 if len(self.options) > 1 :
                     if self.options[1] == 'decimal' :
                         _type = "txt"
-                    else:
-                        _type = "hexa"
+                    elif self.options[1] == 'binary':
+                        _type = "bin"
                 else :
                     _type = "hexa"
             
@@ -63,7 +63,7 @@ class process_button_widget(VBox) :
                 raise Exception("Unsupported Receiver Type")
                 
             # Start the processing
-            parse_data(filename, rx, _type)
+            parse_data(filename, rx, _type, True)
         
         super().__init__([self.wb_process],
                          layout=Layout(border='1px solid black'))
@@ -113,7 +113,7 @@ class receiver_type_widget(VBox) :
             if self.rx_ddmenu.value == "Septentrio" :
                 # Add a format type (radio button)
                 radio_input = RadioButtons(
-                                options=['hexadecimal', 'decimal'],
+                                options=['binary','hexadecimal', 'decimal'],
                                 description = 'File Type',   
                                 disabled = False)
                 
