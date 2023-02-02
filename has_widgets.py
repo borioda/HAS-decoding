@@ -6,7 +6,7 @@ Created on 19 October 2022
 @author: 
     Daniele Borio
 """ 
-
+import os
 from ipywidgets import (VBox, Dropdown, HTML, Layout, RadioButtons, Button )
 
 # Main file with actual parsing routines
@@ -61,9 +61,19 @@ class process_button_widget(VBox) :
                 rx = "jav"
             else :
                 raise Exception("Unsupported Receiver Type")
+            
+            # Check if filename is directory or a file
+            if os.path.isdir(filename) :
+                files = os.listdir(filename)
                 
-            # Start the processing
-            parse_data(filename, rx, _type, True)
+                for f in files :
+                    full_path = filename + f
+                    # process all the files
+                    parse_data(full_path, rx, _type, True)
+            else :
+                # it is a filename
+                 # Start the processing
+                parse_data(filename, rx, _type, True)
         
         super().__init__([self.wb_process],
                          layout=Layout(border='1px solid black'))
