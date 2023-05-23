@@ -564,6 +564,9 @@ def load_from_Novatel(filename : str ) :
             
             # Split the data
             split_line = str_line.split()
+            if len(split_line) < 3 :
+                continue
+            
             prn = int(split_line[2])
             
             payload = split_line[-1]
