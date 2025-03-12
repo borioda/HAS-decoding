@@ -252,10 +252,9 @@ class has_decoder :
             sys_mul[ii], byte_offset, bit_offset = hc.get_bits(body, byte_offset, bit_offset, 2)
         
         sys_mul += 1
-        
+                
         # now get the clock corrections
-        ii = 0
-        for mask in masks :
+        for ii, mask in enumerate(masks) :
             # get the gnss ID        
             gnss = mask.gnss_ID
     
